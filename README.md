@@ -1,144 +1,138 @@
 # display-visual — 画面を「紙のような質感」にして目の疲れを減らす
 
-物理フィルムを貼らずに、**ソフトウェア（CSS・ブラウザ拡張・OS設定）だけ**で、普通のディスプレイを「驚くほど目が疲れない紙のような質感」に近づけるための実装集です。
+![platform](https://img.shields.io/badge/platform-macOS%2013%2B-black)
+![license](https://img.shields.io/badge/license-MIT-green)
+![lang](https://img.shields.io/badge/Swift-6-orange)
 
-人間の視覚特性を利用します。ツルツルの発光画面が疲れる主因は、
+物理フィルムを貼らず、**ソフトウェアだけ**で普通のディスプレイを「驚くほど目が疲れない紙のような質感」に近づけます。
 
-- **ピントの目印がない**（毛様体筋が緊張し続ける）
-- **純白 `#fff` × 純黒 `#000` のハレーション**（文字の輪郭が発光して滲む）
-- **色情報の処理コスト**（赤い通知・広告・グラデーションが脳を消耗させる）
+長時間の発光画面が疲れる主因は3つ — ①**ピントの目印がない**（毛様体筋が緊張し続ける）②**純白 `#fff`×純黒 `#000` のハレーション**（文字の輪郭が発光して滲む）③**色情報の処理コスト**（赤い通知・広告・グラデーションが脳を消耗）。これを微細ノイズ・生成り色・低コントラスト・青カット／モノクロで打ち消します。
 
-の3つ。これらを、微細ノイズ・生成り色・低コントラスト・モノクロ化で打ち消します。
+提供物は2系統:
 
----
-
-## 中身
-
-| パス | 内容 |
-|---|---|
-| `demo/index.html` | Before / After を1クリックで切り替えられるデモ（単体で開けます） |
-| `userstyles/paper-like.user.css` | すべてのサイトを紙化する Stylus 用 UserCSS（背景色・文字色・ノイズ濃度をGUIで調整可） |
-| `snippets/paper.css` | 自作サイト・ブログに貼る最小CSSスニペット |
-| `snippets/noise.svg` | 紙のザラつきを生成する SVG フィルタ（単体ファイル版） |
+1. 🖥 **PaperOverlay（macOSアプリ）** — 全アプリの上に紙ノイズ＋暖色＋減光を重ねる常駐アプリ。メニューバーと `⌘⌥P` で操作。
+2. 🌐 **Web版（CSS / Stylus）** — ブラウザ内のサイトを紙化。
 
 ---
 
-## クイックスタート
+## 🖥 PaperOverlay（macOS）— ディスプレイ全体を紙化
 
-### A. まず効果を体感する（拡張不要）
+VS Code・エディタ・PDF など**画面全体**に効きます。透明・クリック透過・全スペース/フルスクリーン対応。**画面収録などの権限は不要**です。
+
+### インストール
+
+**A. npm（開発者向け・いちばん手軽）**
 
 ```bash
-open demo/index.html   # macOS
+npm install -g paperlike-overlay
+paper-overlay start          # 初回はソースからビルドして ~/Applications に配置し起動
 ```
 
-右上のトグルで **通常 ⇄ 紙モード** を切り替えて、目の刺さり方の違いを確認してください。
+> 初回ビルドに Xcode Command Line Tools（`xcode-select --install`）が必要です。
 
-### B. すべてのWebサイトを紙化する（推奨・拡張1つ）
+**B. リリースの .app をダウンロード**
 
-1. ブラウザに **[Stylus](https://add0n.com/stylus.html)** をインストール
-2. `userstyles/paper-like.user.css` を開いて全文コピー
-3. Stylus → 「新しいスタイルを書く」→ 貼り付け → 保存
-4. Stylus のスタイル設定で **背景色 / 文字色 / ノイズ濃度** を好みに調整
+[Releases](https://github.com/ShotaNagafuchi/display-visual/releases) から `PaperOverlay.app.zip` を解凍し、`~/Applications`（または `/Applications`）へ。
+未公証のため初回は **Finder で右クリック →「開く」** で許可してください。
 
-> UserCSSなので、Stylusのアイコンから変数（生成り色・インク色・ノイズ量・行間）をスライダーで調整できます。
-
-### C. コードを書かず既存サイトを紙化する（別案）
-
-- **Dark Reader**: モードを *ダーク* ではなく **Sepia（セピア）** に。コントラストを **-10〜-20%**。→ 簡易な電子ペーパー風に。
-- **Midnight Lizard**: 背景をテクスチャ、文字を任意のインク色に一括変換。
-
----
-
-## ディスプレイ全体（全アプリ）を紙化する — PaperOverlay（macOS）
-
-ブラウザだけでなく、VS Code・エディタ・PDF など**画面全体**に紙ノイズ＋暖色（青カット）＋減光を重ねる常駐メニューバーアプリです。透明・クリック透過・全スペース/フルスクリーン対応で、画面収録などの特別な権限は不要です。
+**C. ソースからビルド**
 
 ```bash
 cd macos/PaperOverlay
-./build.sh          # swiftc でビルド（要 Xcode Command Line Tools）
-./paper-overlay     # メニューバーに 📄 が出ます
+./build-app.sh && open PaperOverlay.app
 ```
 
-メニューバーの **📄** をクリックすると、ミニアプリ風のパネルが開きます:
+### 使い方
 
-- 上部の大きな **ON/OFF スイッチ**
-- **紙ノイズ / 暖かさ(青カット) / 減光** のスライダー（値をリアルタイム表示）
-- プリセット（やさしめ / 紙 / 最大）と終了ボタン
+- メニューバーの **📄** をクリック → ミニアプリ風パネル（大きな ON/OFF スイッチ、紙ノイズ／暖かさ／減光のスライダー、プリセット、**ログイン時に起動**、終了）。
+- **`⌘⌥P`（Command+Option+P）** でどのアプリからでも即オン/オフ。オフ時は 📄 が淡色に。
+- 設定は保存され次回復元。**「ログイン時に起動」にチェック**すればセッションを閉じても再ログイン時に自動で立ち上がります。
 
-設定は保存され、次回も復元されます。オフ時は 📄 アイコンが淡色になり状態が分かります。
-
-### キーボードショートカット
-
-**⌘⌥P（Command + Option + P）** で、どのアプリからでもオン/オフを即切り替えできます。
-Carbon の `RegisterEventHotKey` を使うため、**アクセシビリティ権限の許可は不要**です。
-
-**技術的な限界（正直な注記）:** OSのオーバーレイ窓は下の画面に対して**乗算合成ができず通常合成のみ**のため、Web版（乗算）より粒はやや薄めに見えます。それでもグレア低減には十分効きます。強い紙質感が欲しいページでは、Web版の UserCSS を併用してください。
-
-### ログイン時に自動起動する（任意）
-
-`~/Library/LaunchAgents/com.display-visual.paperoverlay.plist` を作成:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>com.display-visual.paperoverlay</string>
-  <key>ProgramArguments</key>
-  <array><string>/絶対パス/display-visual/macos/PaperOverlay/paper-overlay</string></array>
-  <key>RunAtLoad</key><true/>
-</dict>
-</plist>
-```
+### CLI
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.display-visual.paperoverlay.plist
+paper-overlay start | stop | toggle | on | off | status | build | install
 ```
 
-`ProgramArguments` のパスは実際のビルド先に置き換えてください。
+### 仕組みと制約（正直な注記）
+
+- OSのオーバーレイ窓は下の画面に対して**乗算合成ができず通常合成のみ**。そのため全画面版の粒は Web版（乗算）よりやや薄めに見えます。強い紙質感が欲しいページでは Web版の UserCSS を併用してください。
+- **コントロールセンターへの常駐は不可**（Appleが公開APIを提供していないため）。メニューバーが定位置です。
+- 配布アプリの**署名・公証**には Apple Developer 登録が必要です。本リポジトリは ad-hoc 署名までで、公証は行っていません。
 
 ---
 
-## OS 全体をモノクロ化する（究極の脳疲労カット）
+## 🌐 Web版 — サイトを紙化する
 
-色情報を丸ごと落とすと、通知の赤丸・広告・不要なグラデーションが消え、脳の処理負荷が激減します。
+### まず体感する（拡張不要）
 
-### macOS
-`システム設定` → `アクセシビリティ` → `ディスプレイ` → `カラーフィルタ` を ON → **グレイスケール**
-ショートカット化: 同画面で「カラーフィルタのオン/オフを切り替え」を有効に。
+```bash
+open demo/index.html
+```
 
-### Windows
-`設定` → `アクセシビリティ` → `カラーフィルター` → **グレースケール**
-ショートカット: `Win + Ctrl + C`（同設定画面で有効化しておく）
+右上のトグルで通常⇄紙モード、スライダーで粒の大きさ・ノイズ強さ・暖かさ・減光を調整できます。ノイズは**乗算合成**なので強弱の差がはっきり出ます。
+
+### すべてのWebサイトを紙化する（Stylus）
+
+1. **[Stylus](https://add0n.com/stylus.html)** をインストール
+2. `userstyles/paper-like.user.css` を全文コピー → Stylus で新規スタイルに貼付 → 保存
+3. Stylus のアイコンから **背景色 / 文字色 / ノイズ強さ / 暖かさ / 減光 / 行間 / 字間** を調整
+
+### 自作サイト・ブログ
+
+`snippets/paper.css` を読み込むだけ。紙ノイズは `mix-blend-mode: multiply` で重ねます。単体の紙ノイズは `snippets/noise.svg`。
+
+### コードを書かない別案
+
+- **Dark Reader**: モードを *ダーク* ではなく **Sepia**、コントラスト -10〜-20%。
+- **Midnight Lizard**: 背景をテクスチャ、文字を任意インク色に一括変換。
 
 ---
 
-## 設計の根拠（このリポジトリで採用している値）
+## OS 全体の設定（標準機能・コード不要）
+
+| 目的 | macOS |
+|---|---|
+| 暖かさ（青カット） | `システム設定 → ディスプレイ → Night Shift` |
+| 減光（バックライト以上） | `アクセシビリティ → ディスプレイ → ホワイトポイントを下げる` |
+| モノクロ | `アクセシビリティ → ディスプレイ → カラーフィルタ → グレイスケール` |
+
+Windows: `設定 → アクセシビリティ → カラーフィルター → グレースケール`（ショートカット `Win+Ctrl+C`）。
+
+---
+
+## リポジトリ構成
+
+```
+display-visual/
+├── macos/PaperOverlay/     # 常駐オーバーレイアプリ（Swift 1ファイル + ビルドスクリプト）
+├── bin/paper-overlay.js    # npm CLI
+├── demo/index.html         # Web版デモ（Before/After）
+├── userstyles/             # Stylus 用 UserCSS
+├── snippets/               # 自作サイト用 CSS / noise.svg
+└── .github/workflows/      # タグ push で .app をリリースに添付
+```
+
+---
+
+## 設計の根拠（採用値）
 
 | 項目 | 値 | 理由 |
 |---|---|---|
-| 背景色 | `#f5f2eb`（生成り） / `#f7f4eb`（書籍紙） / `#f4eccf`（セピア） | 純白のバックライト直撃を避ける |
+| 背景色 | `#f5f2eb`（生成り）/ `#f4eccf`（セピア） | 純白のバックライト直撃を避ける |
 | 文字色 | `#2b2b2b`〜`#333`（炭黒） | 純黒の輪郭発光（ハレーション）を防ぐ |
-| ノイズ | SVG fractalNoise を **`mix-blend-mode: multiply`（乗算）** で重ねる。強さ `0.10〜0.34` | 脳が「質感のある紙」と誤認し、ピント調節が緩む。乗算なので薄くても粒がはっきり読め、強弱の差が体感できる |
-| 粒の大きさ | `baseFrequency 0.7〜1.1` | 小さいほど細かい繊維、大きいほど粗い和紙の表情 |
-| 暖かさ（青カット）| 暖色 `rgba(255,176,92,x)` を乗算で重ねる | 青色光を減らし、夕方以降の刺激を下げる（f.lux 相当） |
-| 減光 | 黒 `rgba(0,0,0,x)` を重ねる | バックライトの明るさ自体を落とし、暗所での眩しさを抑える |
-| 行間 | `line-height 1.8` | 視線移動の認知負荷を下げる |
-| 字間 | `letter-spacing 0.05em` | 文字の密集による滲みを緩和 |
-| アンチエイリアス | `-webkit-font-smoothing: antialiased` | 輪郭を少しマイルドにする |
+| ノイズ | fractalNoise を **multiply** で重ねる（0.10〜0.34） | 脳が「紙」と誤認しピント調節が緩む。乗算なので薄くても粒が読める |
+| 暖かさ | 暖色を乗算（青カット） | 夕方以降の刺激を下げる（f.lux 相当） |
+| 行間/字間 | `1.8` / `0.05em` | 視線移動の認知負荷を下げる |
 
-> **なぜ普通に重ねると差がわからないのか:** 薄いグレーのノイズを通常合成（source-over）で明るい背景に乗せても、画素がほとんど動きません。乗算で重ねると背景の明度に応じて粒が沈むため、同じ不透明度でも「紙の目」としてはっきり読め、スライダーの強弱も体感できます。
-
-**避けるべき組み合わせ:** `#ffffff` と `#000000`。液晶バックライトが文字の輪郭を発光させ、滲んで見えます。
+> **なぜ通常合成だと差がわからないのか:** 薄いグレーのノイズを明るい背景に通常合成しても画素がほぼ動きません。乗算で重ねると背景の明度に応じて粒が沈むため、同じ強さでも「紙の目」としてはっきり読めます。
 
 ---
 
-## 注意
+## Contributing
 
-- 全サイト一括の UserCSS は `!important` で色を強制するため、まれにレイアウトが崩れるサイトがあります。その場合は Stylus 側でそのドメインを除外してください。
-- 画像・動画には紙化を適用しません（本文・面のみ対象）。
-- 効果には個人差があります。まず `demo/index.html` で自分に合う値を探し、UserCSS の変数へ反映するのがおすすめです。
+[CONTRIBUTING.md](./CONTRIBUTING.md) を参照。
 
-## ライセンス
+## License
 
-MIT License — 詳細は [LICENSE](./LICENSE) を参照。
+[MIT](./LICENSE)

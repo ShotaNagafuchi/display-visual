@@ -12,4 +12,10 @@ Thumbs.db
 
 # Build output (macOS overlay app)
 macos/PaperOverlay/paper-overlay
+macos/PaperOverlay/PaperOverlay.app/
 *.o
+
+# Node
+node_modules/
+npm-debug.log*
+*.tgz

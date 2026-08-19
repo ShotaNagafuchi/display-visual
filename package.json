@@ -1,0 +1,46 @@
+{
+  "name": "paperlike-overlay",
+  "version": "1.0.0",
+  "description": "普通のディスプレイを「紙のような質感」にして目の疲れを減らす macOS 常駐アプリ。紙ノイズ＋暖色(青カット)＋減光を全画面に重ね、メニューバーと ⌘⌥P で操作。",
+  "keywords": [
+    "macos",
+    "menubar",
+    "eye-strain",
+    "eye-comfort",
+    "paper",
+    "overlay",
+    "blue-light",
+    "night-shift",
+    "accessibility",
+    "swift"
+  ],
+  "homepage": "https://github.com/ShotaNagafuchi/display-visual#readme",
+  "bugs": {
+    "url": "https://github.com/ShotaNagafuchi/display-visual/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShotaNagafuchi/display-visual.git"
+  },
+  "license": "MIT",
+  "author": "Shota Nagafuchi",
+  "type": "commonjs",
+  "bin": {
+    "paper-overlay": "bin/paper-overlay.js"
+  },
+  "files": [
+    "bin/paper-overlay.js",
+    "macos/PaperOverlay/main.swift",
+    "macos/PaperOverlay/build-app.sh",
+    "macos/PaperOverlay/build.sh",
+    "README.md",
+    "LICENSE"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "preferGlobal": true
+}

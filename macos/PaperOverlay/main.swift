@@ -14,9 +14,44 @@
 
 import AppKit
 import Carbon.HIToolbox
+import ServiceManagement
+import Darwin
 
 extension Notification.Name {
     static let paperToggle = Notification.Name("com.display-visual.paperToggle")
+}
+
+// プロセス間コマンド（CLI ⇄ 常駐プロセス）。DistributedNotificationCenter で送受信する。
+enum RemoteCommand: String {
+    case toggle, on, off, quit
+    var notificationName: Notification.Name { Notification.Name("com.display-visual.paperoverlay." + rawValue) }
+    static func fromCLI(_ args: [String]) -> RemoteCommand? {
+        for a in args {
+            switch a {
+            case "--toggle", "toggle": return .toggle
+            case "--on", "on":         return .on
+            case "--off", "off":       return .off
+            case "--quit", "quit":     return .quit
+            default: continue
+            }
+        }
+        return nil
+    }
+    static let all: [RemoteCommand] = [.toggle, .on, .off, .quit]
+}
+
+// MARK: - 単一起動ロック（多重起動でオーバーレイが二重にかかるのを防ぐ）
+
+private var lockFD: Int32 = -1
+func acquireSingleInstanceLock() {
+    let path = "/tmp/com.display-visual.paperoverlay.lock"
+    lockFD = open(path, O_CREAT | O_RDWR, 0o644)
+    if lockFD < 0 { return } // ロックできなくても致命的ではない
+    if flock(lockFD, LOCK_EX | LOCK_NB) != 0 {
+        FileHandle.standardError.write(
+            "PaperOverlay is already running. (⌘⌥P で切替 / メニューバーの 📄 から操作)\n".data(using: .utf8)!)
+        exit(0)
+    }
 }
 
 // MARK: - 設定（強さ）
@@ -124,17 +159,18 @@ final class PanelViewController: NSViewController {
     private var powerSwitch: NSSwitch!
     private var grainSlider: NSSlider!, warmthSlider: NSSlider!, dimSlider: NSSlider!
     private var grainVal: NSTextField!, warmthVal: NSTextField!, dimVal: NSTextField!
+    private var loginCheck: NSButton!
 
     override func loadView() {
-        let root = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 322))
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 364))
 
         // ヘッダー: タイトル + 大きな ON/OFF スイッチ
         let title = NSTextField(labelWithString: "PaperOverlay")
         title.font = .systemFont(ofSize: 15, weight: .semibold)
-        title.frame = NSRect(x: 18, y: 286, width: 160, height: 22)
+        title.frame = NSRect(x: 18, y: 328, width: 160, height: 22)
         root.addSubview(title)
 
-        powerSwitch = NSSwitch(frame: NSRect(x: 224, y: 284, width: 40, height: 24))
+        powerSwitch = NSSwitch(frame: NSRect(x: 224, y: 326, width: 40, height: 24))
         powerSwitch.state = Settings.shared.enabled ? .on : .off
         powerSwitch.target = self
         powerSwitch.action = #selector(switchChanged(_:))
@@ -143,13 +179,13 @@ final class PanelViewController: NSViewController {
         let hint = NSTextField(labelWithString: "⌘⌥P でどこからでもオン/オフ")
         hint.font = .systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
-        hint.frame = NSRect(x: 18, y: 262, width: 246, height: 16)
+        hint.frame = NSRect(x: 18, y: 304, width: 246, height: 16)
         root.addSubview(hint)
 
         // スライダー3本
-        grainVal  = addRow(to: root, y: 220, title: "紙ノイズ",         value: Settings.shared.grain,  max: 0.5,  action: #selector(grainChanged(_:)),  assign: { self.grainSlider = $0 })
-        warmthVal = addRow(to: root, y: 168, title: "暖かさ(青カット)", value: Settings.shared.warmth, max: 0.35, action: #selector(warmthChanged(_:)), assign: { self.warmthSlider = $0 })
-        dimVal    = addRow(to: root, y: 116, title: "減光",            value: Settings.shared.dim,    max: 0.5,  action: #selector(dimChanged(_:)),    assign: { self.dimSlider = $0 })
+        grainVal  = addRow(to: root, y: 262, title: "紙ノイズ",         value: Settings.shared.grain,  max: 0.5,  action: #selector(grainChanged(_:)),  assign: { self.grainSlider = $0 })
+        warmthVal = addRow(to: root, y: 210, title: "暖かさ(青カット)", value: Settings.shared.warmth, max: 0.35, action: #selector(warmthChanged(_:)), assign: { self.warmthSlider = $0 })
+        dimVal    = addRow(to: root, y: 158, title: "減光",            value: Settings.shared.dim,    max: 0.5,  action: #selector(dimChanged(_:)),    assign: { self.dimSlider = $0 })
 
         // プリセット
         let presets: [(String, CGFloat, CGFloat, CGFloat)] = [
@@ -160,20 +196,25 @@ final class PanelViewController: NSViewController {
         for (i, p) in presets.enumerated() {
             let btn = NSButton(title: p.0, target: self, action: #selector(presetTapped(_:)))
             btn.bezelStyle = .rounded
-            btn.frame = NSRect(x: 18 + CGFloat(i) * 84, y: 66, width: 78, height: 26)
+            btn.frame = NSRect(x: 18 + CGFloat(i) * 84, y: 118, width: 78, height: 26)
             btn.tag = i
             btn.identifier = NSUserInterfaceItemIdentifier("\(p.1),\(p.2),\(p.3)")
             root.addSubview(btn)
         }
 
+        // ログイン時に起動
+        loginCheck = NSButton(checkboxWithTitle: "ログイン時に起動", target: self, action: #selector(loginChanged(_:)))
+        loginCheck.frame = NSRect(x: 18, y: 84, width: 246, height: 20)
+        root.addSubview(loginCheck)
+
         // 区切り + 終了
-        let sep = NSBox(frame: NSRect(x: 12, y: 52, width: 256, height: 1))
+        let sep = NSBox(frame: NSRect(x: 12, y: 66, width: 256, height: 1))
         sep.boxType = .separator
         root.addSubview(sep)
 
         let quit = NSButton(title: "終了", target: self, action: #selector(quitTapped))
         quit.bezelStyle = .rounded
-        quit.frame = NSRect(x: 18, y: 16, width: 78, height: 26)
+        quit.frame = NSRect(x: 18, y: 24, width: 78, height: 26)
         root.addSubview(quit)
 
         self.view = root
@@ -202,11 +243,17 @@ final class PanelViewController: NSViewController {
 
     // 外部（ショートカット等）から状態変化を反映
     func syncFromSettings() {
+        guard isViewLoaded else { return }  // パネル未表示（outlet が nil）なら何もしない
         powerSwitch.state = Settings.shared.enabled ? .on : .off
         grainSlider.doubleValue  = Double(Settings.shared.grain)
         warmthSlider.doubleValue = Double(Settings.shared.warmth)
         dimSlider.doubleValue    = Double(Settings.shared.dim)
         updateValueLabels()
+
+        let available = controller?.loginItemAvailable ?? false
+        loginCheck.isEnabled = available
+        loginCheck.state = (controller?.loginItemEnabled ?? false) ? .on : .off
+        loginCheck.toolTip = available ? nil : ".app としてインストール後に利用できます"
     }
     private func updateValueLabels() {
         grainVal.stringValue  = String(format: "%.2f", Settings.shared.grain)
@@ -232,6 +279,7 @@ final class PanelViewController: NSViewController {
         controller?.redraw()
     }
 
+    @objc private func loginChanged(_ b: NSButton) { controller?.setLoginItem(b.state == .on) }
     @objc private func quitTapped() { NSApp.terminate(nil) }
 }
 
@@ -254,6 +302,26 @@ final class AppController: NSObject, NSApplicationDelegate {
             name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(hotKeyToggle),
             name: .paperToggle, object: nil)
+
+        installRemoteObservers()  // CLI（別プロセス）からのコマンドを受ける
+    }
+
+    // 別プロセスの `PaperOverlay --toggle` 等からの指示を受ける
+    private func installRemoteObservers() {
+        let dnc = DistributedNotificationCenter.default()
+        for cmd in RemoteCommand.all {
+            dnc.addObserver(self, selector: #selector(handleRemote(_:)),
+                            name: cmd.notificationName, object: nil)
+        }
+    }
+    @objc private func handleRemote(_ note: Notification) {
+        guard let cmd = RemoteCommand.all.first(where: { $0.notificationName == note.name }) else { return }
+        switch cmd {
+        case .toggle: hotKeyToggle()
+        case .on:     setEnabled(true);  panel?.syncFromSettings()
+        case .off:    setEnabled(false); panel?.syncFromSettings()
+        case .quit:   NSApp.terminate(nil)
+        }
     }
 
     // MARK: 状態
@@ -267,6 +335,26 @@ final class AppController: NSObject, NSApplicationDelegate {
     @objc private func hotKeyToggle() {
         setEnabled(!Settings.shared.enabled)
         panel?.syncFromSettings()
+    }
+
+    // MARK: ログイン時に起動（.appバンドルとして起動している場合のみ）
+
+    var loginItemAvailable: Bool {
+        if #available(macOS 13.0, *) { return Bundle.main.bundleIdentifier != nil }
+        return false
+    }
+    var loginItemEnabled: Bool {
+        guard loginItemAvailable, #available(macOS 13.0, *) else { return false }
+        return SMAppService.mainApp.status == .enabled
+    }
+    func setLoginItem(_ on: Bool) {
+        guard loginItemAvailable, #available(macOS 13.0, *) else { return }
+        do {
+            if on { try SMAppService.mainApp.register() }
+            else  { try SMAppService.mainApp.unregister() }
+        } catch {
+            NSLog("PaperOverlay: login item toggle failed: \(error)")
+        }
     }
     @objc private func screensChanged() { rebuildWindows() }
     func redraw() { windows.forEach { $0.contentView?.needsDisplay = true } }
@@ -323,6 +411,14 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 }
 
+// CLIコマンド（--toggle/--on/--off/--quit）なら、常駐プロセスに通知を送って終了
+if let cmd = RemoteCommand.fromCLI(Array(CommandLine.arguments.dropFirst())) {
+    DistributedNotificationCenter.default().postNotificationName(
+        cmd.notificationName, object: nil, userInfo: nil, deliverImmediately: true)
+    exit(0)
+}
+
+acquireSingleInstanceLock()           // 多重起動を防ぐ
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)   // Dockに出さない常駐アプリ
 let controller = AppController()

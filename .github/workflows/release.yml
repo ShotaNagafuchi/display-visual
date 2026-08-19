@@ -1,0 +1,43 @@
+name: Release
+
+# タグ（v1.2.3 形式）を push すると PaperOverlay.app をビルドして
+# zip をリリースに添付します。
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos-app:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swiftc --version
+
+      - name: Build PaperOverlay.app
+        working-directory: macos/PaperOverlay
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash build-app.sh "$VERSION"
+
+      - name: Zip app
+        working-directory: macos/PaperOverlay
+        run: ditto -c -k --keepParent PaperOverlay.app PaperOverlay.app.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: macos/PaperOverlay/PaperOverlay.app.zip
+          generate_release_notes: true
+          body: |
+            ## PaperOverlay ${{ github.ref_name }}
+
+            `PaperOverlay.app.zip` を解凍して `~/Applications`（または `/Applications`）に置き、ダブルクリックで起動します。
+
+            > 未公証のため初回は Finder で右クリック →「開く」で許可してください。
+            > もしくは npm から: `npm i -g paperlike-overlay && paper-overlay start`
