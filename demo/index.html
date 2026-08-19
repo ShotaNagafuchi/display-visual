@@ -6,14 +6,17 @@
   <title>紙化デモ — display-visual</title>
   <style>
     :root {
-      /* 調整可能な変数（コントロールパネルから操作） */
       --paper-bg: #f5f2eb;
       --paper-ink: #2b2b2b;
-      --paper-noise-opacity: 0.025;
       --paper-lh: 1.8;
       --paper-ls: 0.05em;
 
-      /* 通常モード（紙化OFF）の値 */
+      /* オーバーレイ制御 */
+      --grain-url: none;
+      --grain-opacity: 0.16;   /* 乗算ノイズの強さ */
+      --warmth: 0.06;          /* 暖色（ブルーライトカット）の強さ */
+      --dim: 0;                /* 減光 */
+
       --plain-bg: #ffffff;
       --plain-ink: #000000;
     }
@@ -34,10 +37,9 @@
       letter-spacing: 0;
     }
 
-    /* ---- 紙モード（body.paper で有効化） ---- */
+    /* ---- 紙モード ---- */
     body.paper {
       background-color: var(--paper-bg);
-      background-image: var(--noise-url);
       color: var(--paper-ink);
       line-height: var(--paper-lh);
       letter-spacing: var(--paper-ls);
@@ -45,7 +47,29 @@
       -moz-osx-font-smoothing: grayscale;
     }
 
-    .wrap { max-width: 720px; margin: 0 auto; padding: 72px 24px 120px; }
+    /* 紙の目（ノイズ）: 乗算で重ねると同じ不透明度でも粒がはっきり読める */
+    body.paper::before {
+      content: "";
+      position: fixed; inset: 0; z-index: 9998;
+      pointer-events: none;
+      background-image: var(--grain-url);
+      background-size: 180px 180px;
+      opacity: var(--grain-opacity);
+      mix-blend-mode: multiply;
+    }
+
+    /* 暖色（ブルーライトカット）+ 減光を1枚で。乗算で色温度を下げる */
+    body.paper::after {
+      content: "";
+      position: fixed; inset: 0; z-index: 9999;
+      pointer-events: none;
+      background:
+        rgba(0, 0, 0, var(--dim)),
+        rgba(255, 176, 92, var(--warmth));
+      mix-blend-mode: multiply;
+    }
+
+    .wrap { max-width: 720px; margin: 0 auto; padding: 72px 24px 120px; position: relative; z-index: 1; }
 
     h1 { font-size: clamp(1.8rem, 1rem + 3vw, 2.6rem); margin: 0 0 .2em; letter-spacing: inherit; }
     .lead { font-size: 1.1rem; opacity: .8; margin: 0 0 2.5em; }
@@ -55,30 +79,27 @@
     body:not(.paper) a { color: #0645ad; }
     code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .9em; background: rgba(0,0,0,.06); padding: .15em .4em; border-radius: 4px; }
 
-    /* サンプルのパネル（純白のハレーションを見せる用） */
-    .card {
-      background: #fff; border: 1px solid rgba(0,0,0,.08);
-      border-radius: 10px; padding: 20px 24px; margin: 1.5em 0;
-    }
+    .card { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 10px; padding: 20px 24px; margin: 1.5em 0; }
     body.paper .card { background: #faf8f2; border-color: rgba(0,0,0,.12); }
 
     /* ---- コントロールパネル ---- */
     .panel {
-      position: fixed; top: 16px; right: 16px; z-index: 10;
+      position: fixed; top: 16px; right: 16px; z-index: 10000;
       background: rgba(30,30,30,.92); color: #fff;
-      border-radius: 14px; padding: 16px 18px; width: 250px;
+      border-radius: 14px; padding: 16px 18px; width: 264px;
       box-shadow: 0 10px 40px rgba(0,0,0,.3);
       font-size: 13px; backdrop-filter: blur(6px);
+      max-height: calc(100vh - 32px); overflow-y: auto;
     }
     .panel h3 { margin: 0 0 12px; font-size: 13px; letter-spacing: .04em; opacity: .7; text-transform: uppercase; }
-    .toggle {
-      width: 100%; border: 0; border-radius: 10px; padding: 12px;
-      font-size: 15px; font-weight: 700; cursor: pointer;
-      background: #f5f2eb; color: #2b2b2b; transition: transform .1s ease;
-    }
+    .toggle { width: 100%; border: 0; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 700; cursor: pointer; background: #f5f2eb; color: #2b2b2b; transition: transform .1s ease; }
     .toggle:active { transform: scale(.97); }
     .toggle.on { background: #4FB5B4; color: #fff; }
-    .row { margin-top: 14px; display: flex; flex-direction: column; gap: 4px; }
+    .presets { display: flex; gap: 6px; margin-top: 12px; }
+    .presets button { flex: 1; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.06); color: #fff; border-radius: 8px; padding: 7px 0; font-size: 12px; cursor: pointer; }
+    .presets button:hover { background: rgba(255,255,255,.16); }
+    .sec { margin-top: 14px; font-size: 11px; letter-spacing: .05em; opacity: .5; text-transform: uppercase; }
+    .row { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
     .row label { display: flex; justify-content: space-between; opacity: .85; }
     .row input[type=range] { width: 100%; accent-color: #4FB5B4; }
     .row input[type=color] { width: 100%; height: 28px; border: 0; background: none; border-radius: 6px; cursor: pointer; }
@@ -91,6 +112,33 @@
     <h3>紙化デモ</h3>
     <button id="toggle" class="toggle">紙モードを ON にする</button>
     <div class="controls" id="controls" hidden>
+      <div class="presets">
+        <button data-preset="soft">やさしめ</button>
+        <button data-preset="paper">紙</button>
+        <button data-preset="max">最大</button>
+      </div>
+
+      <div class="sec">紙の質感</div>
+      <div class="row">
+        <label>粒の大きさ <span id="grainSizeVal">中</span></label>
+        <input type="range" id="grainSize" min="0.4" max="1.6" step="0.05" value="0.9">
+      </div>
+      <div class="row">
+        <label>ノイズ強さ <span id="grainVal">0.16</span></label>
+        <input type="range" id="grain" min="0" max="0.5" step="0.01" value="0.16">
+      </div>
+
+      <div class="sec">目の負担を下げる</div>
+      <div class="row">
+        <label>暖かさ（青カット）<span id="warmthVal">0.06</span></label>
+        <input type="range" id="warmth" min="0" max="0.35" step="0.01" value="0.06">
+      </div>
+      <div class="row">
+        <label>減光 <span id="dimVal">0</span></label>
+        <input type="range" id="dim" min="0" max="0.4" step="0.01" value="0">
+      </div>
+
+      <div class="sec">色とレイアウト</div>
       <div class="row">
         <label>背景色 <span id="bgVal">#f5f2eb</span></label>
         <input type="color" id="bg" value="#f5f2eb">
@@ -98,10 +146,6 @@
       <div class="row">
         <label>文字色 <span id="inkVal">#2b2b2b</span></label>
         <input type="color" id="ink" value="#2b2b2b">
-      </div>
-      <div class="row">
-        <label>ノイズ濃度 <span id="noiseVal">0.025</span></label>
-        <input type="range" id="noise" min="0" max="0.06" step="0.005" value="0.025">
       </div>
       <div class="row">
         <label>行間 <span id="lhVal">1.8</span></label>
@@ -112,56 +156,80 @@
         <input type="range" id="ls" min="0" max="0.12" step="0.01" value="0.05">
       </div>
     </div>
-    <p class="hint">気に入った値を <code>userstyles/paper-like.user.css</code> の変数に反映すると、全サイトに適用できます。</p>
+    <p class="hint">気に入った値を <code>userstyles/paper-like.user.css</code> に反映すると全サイトへ適用できます。</p>
   </aside>
 
   <main class="wrap">
     <h1>画面を「紙」にする</h1>
-    <p class="lead">右上のトグルで通常モードと紙モードを切り替えて、目への刺さり方の違いを確かめてください。</p>
+    <p class="lead">右上のトグルで通常⇄紙を切替え、スライダーで自分に合う強さを探してください。ノイズは<strong>乗算</strong>で重ねているので、強弱の差がはっきり出ます。</p>
 
-    <p>ツルツルした発光画面が疲れる主な原因は、<strong>ピントの目印がない</strong>こと、そして<strong>純白 <code>#fff</code> と純黒 <code>#000</code> のハレーション</strong>です。純白のバックライトが文字の輪郭を発光させ、長時間見ていると文字が滲んで見えてきます。</p>
+    <p>ツルツルの発光画面が疲れる主因は、<strong>ピントの目印がない</strong>ことと、<strong>純白 <code>#fff</code> × 純黒 <code>#000</code> のハレーション</strong>です。純白のバックライトが文字の輪郭を発光させ、長時間で文字が滲んで見えてきます。</p>
 
-    <p>この画面には、目に見えないほど微細な SVG ノイズ（<code>fractalNoise</code>）を 2.5% の不透明度で重ねています。パッと見はただの生成り色ですが、脳が「質感のある紙」と誤認するため、ピント調節を担う毛様体筋が緩み、光の刺さり具合がマイルドになります。</p>
+    <p>この画面には SVG ノイズ（<code>fractalNoise</code>）を乗算で重ねています。脳が「質感のある紙」と誤認し、ピント調節を担う毛様体筋が緩むため、光の刺さり具合がマイルドになります。「粒の大きさ」を変えると、細かい繊維〜粗い和紙まで表情が変わります。</p>
 
     <h2>純白パネルはハレーションの原因</h2>
     <div class="card">
-      <p>これは真っ白なカードです。通常モードだと周囲との明度差が大きく、面が発光しているように感じられます。紙モードにすると、このカードも生成り寄りの色に落ち着き、面のギラつきが消えます。</p>
+      <p>真っ白なカードです。通常モードでは面が発光して見えますが、紙モードでは生成り寄りに落ち着き、ギラつきが消えます。</p>
     </div>
 
-    <h2>コントラストは高すぎても低すぎても疲れる</h2>
-    <p>紙の本に近い最適なコントラスト比を狙います。背景は <code>#f5f2eb</code>（生成り）や <code>#f4eccf</code>（セピア）、文字は <code>#2b2b2b</code>（炭黒）。純黒を避けることで、文字の輪郭の発光を防ぎます。行間を <code>1.8</code> に広げ、字間を少し空けると、視線移動の認知負荷が下がります。</p>
-
-    <p>テキスト入力・コーディング・リサーチのような長時間の読み書きで、驚くほど目が痛くなりにくく、集中力が持続します。まずここで自分に合う値を探し、Stylus の UserCSS に反映してすべてのサイトへ広げましょう。</p>
+    <h2>もっと楽にするレバー</h2>
+    <p><strong>暖かさ</strong>を上げると青色光が減り、夕方以降の刺激が下がります。<strong>減光</strong>はバックライトの明るさ自体を落とすので、暗い部屋での眩しさに効きます。やりすぎると読みにくくなるので、まず「紙」プリセットから微調整するのがおすすめです。</p>
   </main>
 
   <script>
     const $ = (id) => document.getElementById(id);
     const body = document.body;
+    const root = document.documentElement.style;
 
-    // 紙ノイズSVGを不透明度パラメータから生成
-    function noiseUrl(op) {
+    // 粒サイズ(baseFrequency)から、乗算前提の高コントラストなノイズSVGを生成
+    function grainUrl(freq) {
       const svg =
-        "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>" +
-        "<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/></filter>" +
-        "<rect width='100%' height='100%' filter='url(#n)' opacity='" + op + "'/></svg>";
+        "<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'>" +
+          "<filter id='n'>" +
+            "<feTurbulence type='fractalNoise' baseFrequency='" + freq + "' numOctaves='3' stitchTiles='stitch'/>" +
+            // 彩度を落として濃淡を強調（紙の目としてより読める）
+            "<feColorMatrix type='saturate' values='0'/>" +
+            "<feComponentTransfer><feFuncA type='linear' slope='1.4' intercept='-0.1'/></feComponentTransfer>" +
+          "</filter>" +
+          "<rect width='100%' height='100%' filter='url(#n)'/>" +
+        "</svg>";
       return "url(\"data:image/svg+xml," + encodeURIComponent(svg) + "\")";
     }
 
+    function sizeLabel(f) { return f < 0.7 ? '粗い' : (f > 1.15 ? '細かい' : '中'); }
+
     function apply() {
-      const r = document.documentElement.style;
-      r.setProperty('--paper-bg', $('bg').value);
-      r.setProperty('--paper-ink', $('ink').value);
-      r.setProperty('--paper-lh', $('lh').value);
-      r.setProperty('--paper-ls', $('ls').value + 'em');
-      r.setProperty('--noise-url', noiseUrl($('noise').value));
+      root.setProperty('--paper-bg', $('bg').value);
+      root.setProperty('--paper-ink', $('ink').value);
+      root.setProperty('--paper-lh', $('lh').value);
+      root.setProperty('--paper-ls', $('ls').value + 'em');
+      root.setProperty('--grain-url', grainUrl($('grainSize').value));
+      root.setProperty('--grain-opacity', $('grain').value);
+      root.setProperty('--warmth', $('warmth').value);
+      root.setProperty('--dim', $('dim').value);
+
       $('bgVal').textContent = $('bg').value;
       $('inkVal').textContent = $('ink').value;
-      $('noiseVal').textContent = $('noise').value;
+      $('grainSizeVal').textContent = sizeLabel(parseFloat($('grainSize').value));
+      $('grainVal').textContent = $('grain').value;
+      $('warmthVal').textContent = $('warmth').value;
+      $('dimVal').textContent = $('dim').value;
       $('lhVal').textContent = $('lh').value;
       $('lsVal').textContent = $('ls').value;
     }
 
-    ['bg','ink','noise','lh','ls'].forEach(id => $(id).addEventListener('input', apply));
+    ['bg','ink','grainSize','grain','warmth','dim','lh','ls'].forEach(id => $(id).addEventListener('input', apply));
+
+    const PRESETS = {
+      soft:  { grainSize: 1.1, grain: 0.10, warmth: 0.04, dim: 0,    bg: '#f7f4eb', ink: '#333333' },
+      paper: { grainSize: 0.9, grain: 0.18, warmth: 0.08, dim: 0.04, bg: '#f5f2eb', ink: '#2b2b2b' },
+      max:   { grainSize: 0.7, grain: 0.34, warmth: 0.18, dim: 0.12, bg: '#f4eccf', ink: '#2c2416' },
+    };
+    document.querySelectorAll('.presets button').forEach(b => b.addEventListener('click', () => {
+      const p = PRESETS[b.dataset.preset];
+      for (const k in p) $(k).value = p[k];
+      apply();
+    }));
 
     $('toggle').addEventListener('click', () => {
       const on = body.classList.toggle('paper');
