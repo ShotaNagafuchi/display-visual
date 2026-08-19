@@ -49,6 +49,45 @@ open demo/index.html   # macOS
 
 ---
 
+## ディスプレイ全体（全アプリ）を紙化する — PaperOverlay（macOS）
+
+ブラウザだけでなく、VS Code・エディタ・PDF など**画面全体**に紙ノイズ＋暖色（青カット）＋減光を重ねる常駐メニューバーアプリです。透明・クリック透過・全スペース/フルスクリーン対応で、画面収録などの特別な権限は不要です。
+
+```bash
+cd macos/PaperOverlay
+./build.sh          # swiftc でビルド（要 Xcode Command Line Tools）
+./paper-overlay     # メニューバーに 📄 が出ます
+```
+
+📄 メニューから **紙ノイズ / 暖かさ / 減光** をスライダーで調整、またはプリセット（やさしめ / 紙 / 最大）を選べます。設定は保存され、次回も復元されます。
+
+**技術的な限界（正直な注記）:** OSのオーバーレイ窓は下の画面に対して**乗算合成ができず通常合成のみ**のため、Web版（乗算）より粒はやや薄めに見えます。それでもグレア低減には十分効きます。強い紙質感が欲しいページでは、Web版の UserCSS を併用してください。
+
+### ログイン時に自動起動する（任意）
+
+`~/Library/LaunchAgents/com.display-visual.paperoverlay.plist` を作成:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.display-visual.paperoverlay</string>
+  <key>ProgramArguments</key>
+  <array><string>/絶対パス/display-visual/macos/PaperOverlay/paper-overlay</string></array>
+  <key>RunAtLoad</key><true/>
+</dict>
+</plist>
+```
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.display-visual.paperoverlay.plist
+```
+
+`ProgramArguments` のパスは実際のビルド先に置き換えてください。
+
+---
+
 ## OS 全体をモノクロ化する（究極の脳疲労カット）
 
 色情報を丸ごと落とすと、通知の赤丸・広告・不要なグラデーションが消え、脳の処理負荷が激減します。

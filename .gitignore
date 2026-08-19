@@ -9,3 +9,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Build output (macOS overlay app)
+macos/PaperOverlay/paper-overlay
+*.o
