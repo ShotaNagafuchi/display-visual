@@ -13,6 +13,8 @@ Thumbs.db
 # Build output (macOS overlay app)
 macos/PaperOverlay/paper-overlay
 macos/PaperOverlay/PaperOverlay.app/
+macos/PaperOverlay/*.dmg
+macos/PaperOverlay/*.zip
 *.o
 
 # Node

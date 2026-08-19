@@ -292,6 +292,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var panel: PanelViewController!
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        if offerMoveToApplicationsIfNeeded() { return }  // 移動＆再起動したら以降の初期化はしない
         Settings.shared.load()
         buildStatusItem()
         buildPopover()
@@ -335,6 +336,43 @@ final class AppController: NSObject, NSApplicationDelegate {
     @objc private func hotKeyToggle() {
         setEnabled(!Settings.shared.enabled)
         panel?.syncFromSettings()
+    }
+
+    // MARK: Applications への移動を促す（DMG/Downloads から起動されたとき）
+
+    @discardableResult
+    private func offerMoveToApplicationsIfNeeded() -> Bool {
+        let path = Bundle.main.bundlePath
+        guard path.hasSuffix(".app") else { return false }  // 開発時の生バイナリ実行は対象外
+        let home = NSHomeDirectory()
+        if path.hasPrefix("/Applications/") || path.hasPrefix(home + "/Applications/") { return false }
+
+        let alert = NSAlert()
+        alert.messageText = "PaperOverlay を Applications に移動しますか？"
+        alert.informativeText = "アプリケーションフォルダに置くと、ログイン時の自動起動やアップデートが安定します。"
+        alert.addButton(withTitle: "移動して起動")
+        alert.addButton(withTitle: "そのまま使う")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+
+        let fm = FileManager.default
+        var dest = "/Applications/PaperOverlay.app"
+        do {
+            if fm.fileExists(atPath: dest) { try? fm.removeItem(atPath: dest) }
+            try fm.copyItem(atPath: path, toPath: dest)
+        } catch {
+            // /Applications に書けなければ ~/Applications へ
+            let userApps = home + "/Applications"
+            try? fm.createDirectory(atPath: userApps, withIntermediateDirectories: true)
+            dest = userApps + "/PaperOverlay.app"
+            try? fm.removeItem(atPath: dest)
+            do { try fm.copyItem(atPath: path, toPath: dest) }
+            catch { return false }  // 失敗したらそのまま使ってもらう
+        }
+        let cfg = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: dest), configuration: cfg) { _, _ in }
+        NSApp.terminate(nil)
+        return true
     }
 
     // MARK: ログイン時に起動（.appバンドルとして起動している場合のみ）

@@ -30,10 +30,16 @@ paper-overlay start          # 初回はソースからビルドして ~/Applica
 
 > 初回ビルドに Xcode Command Line Tools（`xcode-select --install`）が必要です。
 
-**B. リリースの .app をダウンロード**
+**B. DMG をダウンロード（一般ユーザー向け）**
 
-[Releases](https://github.com/ShotaNagafuchi/display-visual/releases) から `PaperOverlay.app.zip` を解凍し、`~/Applications`（または `/Applications`）へ。
-未公証のため初回は **Finder で右クリック →「開く」** で許可してください。
+配布ページ: **https://shotanagafuchi.github.io/display-visual/**
+または [Releases](https://github.com/ShotaNagafuchi/display-visual/releases) から `PaperOverlay.dmg` をDL。
+
+1. `PaperOverlay.dmg` を開く
+2. `PaperOverlay.app` を **Applications** にドラッグ
+3. 初回だけ **右クリック →「開く」** で許可（未署名アプリのため）
+
+> 起動時に「Applicationsに移動しますか？」と聞かれた場合は「移動して起動」でもOKです。
 
 **C. ソースからビルド**
 
@@ -58,7 +64,7 @@ paper-overlay start | stop | toggle | on | off | status | build | install
 
 - OSのオーバーレイ窓は下の画面に対して**乗算合成ができず通常合成のみ**。そのため全画面版の粒は Web版（乗算）よりやや薄めに見えます。強い紙質感が欲しいページでは Web版の UserCSS を併用してください。
 - **コントロールセンターへの常駐は不可**（Appleが公開APIを提供していないため）。メニューバーが定位置です。
-- 配布アプリの**署名・公証**には Apple Developer 登録が必要です。本リポジトリは ad-hoc 署名までで、公証は行っていません。
+- **配布に Apple Developer 登録（年$99）は不要**です。未署名DMGで配布でき、多くのOSSアプリも同様です。登録が要るのは「初回のGatekeeper警告を消す（Developer ID署名＋公証）」場合だけ。未公証でも **右クリック→開く** で普通に使えます。
 
 ---
 
@@ -108,9 +114,10 @@ display-visual/
 ├── macos/PaperOverlay/     # 常駐オーバーレイアプリ（Swift 1ファイル + ビルドスクリプト）
 ├── bin/paper-overlay.js    # npm CLI
 ├── demo/index.html         # Web版デモ（Before/After）
+├── docs/index.html         # GitHub Pages 配布ページ
 ├── userstyles/             # Stylus 用 UserCSS
 ├── snippets/               # 自作サイト用 CSS / noise.svg
-└── .github/workflows/      # タグ push で .app をリリースに添付
+└── .github/workflows/      # タグ push で .dmg / .zip をリリースに添付
 ```
 
 ---
