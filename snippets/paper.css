@@ -1,29 +1,44 @@
 /*
  * paper.css — 自作サイト/ブログを「紙のような質感」にする最小スニペット
- * <body> にそのまま効きます。CSS変数で微調整できます。
+ * 紙ノイズは mix-blend-mode: multiply（乗算）で重ねるため、薄くても粒がはっきり読めます。
  * 出典プロジェクト: github.com/ShotaNagafuchi/display-visual
  */
 
 :root {
-  --paper-bg: #f5f2eb;       /* 生成り。#f7f4eb(書籍紙) / #f4eccf(セピア) も可 */
-  --paper-ink: #2b2b2b;      /* 炭黒。純黒(#000)は使わない */
-  --paper-noise-opacity: 0.025; /* 紙のザラつき。0.02〜0.04 が目安 */
+  --paper-bg: #f5f2eb;          /* 生成り。#f7f4eb(書籍紙) / #f4eccf(セピア) も可 */
+  --paper-ink: #2b2b2b;         /* 炭黒。純黒(#000)は使わない */
+  --paper-grain: 0.16;          /* 紙ノイズの強さ。0.10〜0.34 が目安 */
+  --paper-warmth: 0.07;         /* 暖色（ブルーライトカット）。夕方以降は上げる */
+  --paper-dim: 0;               /* 減光。暗い部屋で眩しいとき上げる */
   --paper-line-height: 1.8;
   --paper-letter-spacing: 0.05em;
 }
 
 body {
   background-color: var(--paper-bg);
-
-  /* SVG fractalNoise で微細な紙のザラつきを重ねる（正しくエンコード済み） */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-
   color: var(--paper-ink);
   line-height: var(--paper-line-height);
   letter-spacing: var(--paper-letter-spacing);
-
-  /* 文字の輪郭を少しマイルドにする */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 紙の目（ノイズ）: 乗算で重ねる */
+body::before {
+  content: "";
+  position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='1.4' intercept='-0.1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: var(--paper-grain);
+  mix-blend-mode: multiply;
+}
+
+/* 暖色（青カット）＋減光 */
+body::after {
+  content: "";
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background:
+    rgba(0, 0, 0, var(--paper-dim)),
+    rgba(255, 176, 92, var(--paper-warmth));
+  mix-blend-mode: multiply;
 }

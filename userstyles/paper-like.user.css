@@ -1,26 +1,25 @@
 /* ==UserStyle==
 @name           Paper-like Reading (紙化)
 @namespace      github.com/ShotaNagafuchi/display-visual
-@version        1.0.0
-@description    すべてのサイトを「紙のような質感」に。生成り色の背景・微細ノイズ・低コントラスト・広い行間で目の疲れを減らします。
+@version        2.0.0
+@description    すべてのサイトを「紙のような質感」に。乗算で重ねた紙ノイズ＋生成り色＋暖色（青カット）＋減光で目の疲れを減らします。強さはStylusのスライダーで調整可。
 @author         ShotaNagafuchi
 @license        MIT
 @preprocessor   default
-@var color   bg     "背景色（生成り）"     #f5f2eb
-@var color   ink    "文字色（炭黒）"       #2b2b2b
-@var color   link   "リンク色"            #3a5f8a
-@var number  noise  "ノイズ濃度"          [0.025, 0, 0.06, 0.005]
-@var number  lh     "行間"               [1.8, 1.3, 2.2, 0.05]
-@var number  ls     "字間 (em)"          [0.05, 0, 0.12, 0.01]
+@var color   bg      "背景色（生成り）"          #f5f2eb
+@var color   ink     "文字色（炭黒）"            #2b2b2b
+@var color   link    "リンク色"                 #3a5f8a
+@var number  grain   "ノイズ強さ（乗算）"        [0.16, 0, 0.5, 0.01]
+@var number  warmth  "暖かさ（青カット）"        [0.07, 0, 0.35, 0.01]
+@var number  dim     "減光"                    [0, 0, 0.4, 0.01]
+@var number  lh      "行間"                    [1.8, 1.3, 2.2, 0.05]
+@var number  ls      "字間 (em)"               [0.05, 0, 0.12, 0.01]
 ==/UserStyle== */
 
 @-moz-document regexp(".*") {
   html,
   body {
     background-color: /*[[bg]]*/ #f5f2eb !important;
-    /* SVG fractalNoise の紙ザラつき（濃度はrect側で固定、視認上ほぼ不変。強弱はStylusのnoise変数で下のフィルタ層を切替える設計） */
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E") !important;
     color: /*[[ink]]*/ #2b2b2b !important;
     line-height: /*[[lh]]*/ 1.8 !important;
     letter-spacing: /*[[ls]]*/ 0.05em !important;
@@ -30,30 +29,39 @@
 
   /* 本文系の面を生成り色に寄せる（純白パネルのハレーションを消す） */
   main, article, section, aside, header, footer, nav,
-  div, p, li, td, th, blockquote, pre, code,
+  div, p, li, td, th, blockquote, pre,
   .content, .container, .post, .entry, .article {
     background-color: transparent !important;
     color: /*[[ink]]*/ #2b2b2b !important;
   }
 
-  /* 見出しは本文よりわずかに濃く */
-  h1, h2, h3, h4, h5, h6 {
-    color: #1f1f1f !important;
-  }
+  h1, h2, h3, h4, h5, h6 { color: #1f1f1f !important; }
+  a, a * { color: /*[[link]]*/ #3a5f8a !important; }
 
-  /* リンクは発光させず、落ち着いたインク色に */
-  a, a * {
-    color: /*[[link]]*/ #3a5f8a !important;
-  }
-
-  /* 純白の入力欄も紙色へ */
   input, textarea, select {
     background-color: #faf8f2 !important;
     color: /*[[ink]]*/ #2b2b2b !important;
   }
 
-  /* 画像・動画・キャンバスは紙化しない（コンテンツを壊さない） */
-  img, video, canvas, svg, picture, iframe {
-    background-color: transparent !important;
+  /* 紙の目（ノイズ）: 乗算で重ねると同じ強さでも粒がはっきり読める */
+  html::before {
+    content: "" !important;
+    position: fixed !important; inset: 0 !important;
+    z-index: 2147483646 !important; pointer-events: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='1.4' intercept='-0.1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") !important;
+    background-size: 180px 180px !important;
+    opacity: /*[[grain]]*/ 0.16 !important;
+    mix-blend-mode: multiply !important;
+  }
+
+  /* 暖色（青カット）＋減光を1枚で。乗算で色温度を下げる */
+  html::after {
+    content: "" !important;
+    position: fixed !important; inset: 0 !important;
+    z-index: 2147483647 !important; pointer-events: none !important;
+    background:
+      rgba(0, 0, 0, /*[[dim]]*/ 0),
+      rgba(255, 176, 92, /*[[warmth]]*/ 0.07) !important;
+    mix-blend-mode: multiply !important;
   }
 }
