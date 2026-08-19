@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>紙化デモ — display-visual</title>
+  <style>
+    :root {
+      /* 調整可能な変数（コントロールパネルから操作） */
+      --paper-bg: #f5f2eb;
+      --paper-ink: #2b2b2b;
+      --paper-noise-opacity: 0.025;
+      --paper-lh: 1.8;
+      --paper-ls: 0.05em;
+
+      /* 通常モード（紙化OFF）の値 */
+      --plain-bg: #ffffff;
+      --plain-ink: #000000;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+      transition: background-color .4s ease, color .4s ease;
+    }
+
+    /* ---- 通常モード ---- */
+    body {
+      background-color: var(--plain-bg);
+      color: var(--plain-ink);
+      line-height: 1.6;
+      letter-spacing: 0;
+    }
+
+    /* ---- 紙モード（body.paper で有効化） ---- */
+    body.paper {
+      background-color: var(--paper-bg);
+      background-image: var(--noise-url);
+      color: var(--paper-ink);
+      line-height: var(--paper-lh);
+      letter-spacing: var(--paper-ls);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .wrap { max-width: 720px; margin: 0 auto; padding: 72px 24px 120px; }
+
+    h1 { font-size: clamp(1.8rem, 1rem + 3vw, 2.6rem); margin: 0 0 .2em; letter-spacing: inherit; }
+    .lead { font-size: 1.1rem; opacity: .8; margin: 0 0 2.5em; }
+    h2 { font-size: 1.4rem; margin: 2em 0 .6em; border-bottom: 1px solid currentColor; padding-bottom: .3em; opacity: .95; }
+    p { margin: 0 0 1.2em; }
+    a { color: #3a5f8a; }
+    body:not(.paper) a { color: #0645ad; }
+    code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .9em; background: rgba(0,0,0,.06); padding: .15em .4em; border-radius: 4px; }
+
+    /* サンプルのパネル（純白のハレーションを見せる用） */
+    .card {
+      background: #fff; border: 1px solid rgba(0,0,0,.08);
+      border-radius: 10px; padding: 20px 24px; margin: 1.5em 0;
+    }
+    body.paper .card { background: #faf8f2; border-color: rgba(0,0,0,.12); }
+
+    /* ---- コントロールパネル ---- */
+    .panel {
+      position: fixed; top: 16px; right: 16px; z-index: 10;
+      background: rgba(30,30,30,.92); color: #fff;
+      border-radius: 14px; padding: 16px 18px; width: 250px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.3);
+      font-size: 13px; backdrop-filter: blur(6px);
+    }
+    .panel h3 { margin: 0 0 12px; font-size: 13px; letter-spacing: .04em; opacity: .7; text-transform: uppercase; }
+    .toggle {
+      width: 100%; border: 0; border-radius: 10px; padding: 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      background: #f5f2eb; color: #2b2b2b; transition: transform .1s ease;
+    }
+    .toggle:active { transform: scale(.97); }
+    .toggle.on { background: #4FB5B4; color: #fff; }
+    .row { margin-top: 14px; display: flex; flex-direction: column; gap: 4px; }
+    .row label { display: flex; justify-content: space-between; opacity: .85; }
+    .row input[type=range] { width: 100%; accent-color: #4FB5B4; }
+    .row input[type=color] { width: 100%; height: 28px; border: 0; background: none; border-radius: 6px; cursor: pointer; }
+    .hint { margin-top: 12px; font-size: 11px; line-height: 1.5; opacity: .55; }
+    .controls[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <aside class="panel">
+    <h3>紙化デモ</h3>
+    <button id="toggle" class="toggle">紙モードを ON にする</button>
+    <div class="controls" id="controls" hidden>
+      <div class="row">
+        <label>背景色 <span id="bgVal">#f5f2eb</span></label>
+        <input type="color" id="bg" value="#f5f2eb">
+      </div>
+      <div class="row">
+        <label>文字色 <span id="inkVal">#2b2b2b</span></label>
+        <input type="color" id="ink" value="#2b2b2b">
+      </div>
+      <div class="row">
+        <label>ノイズ濃度 <span id="noiseVal">0.025</span></label>
+        <input type="range" id="noise" min="0" max="0.06" step="0.005" value="0.025">
+      </div>
+      <div class="row">
+        <label>行間 <span id="lhVal">1.8</span></label>
+        <input type="range" id="lh" min="1.3" max="2.2" step="0.05" value="1.8">
+      </div>
+      <div class="row">
+        <label>字間 (em) <span id="lsVal">0.05</span></label>
+        <input type="range" id="ls" min="0" max="0.12" step="0.01" value="0.05">
+      </div>
+    </div>
+    <p class="hint">気に入った値を <code>userstyles/paper-like.user.css</code> の変数に反映すると、全サイトに適用できます。</p>
+  </aside>
+
+  <main class="wrap">
+    <h1>画面を「紙」にする</h1>
+    <p class="lead">右上のトグルで通常モードと紙モードを切り替えて、目への刺さり方の違いを確かめてください。</p>
+
+    <p>ツルツルした発光画面が疲れる主な原因は、<strong>ピントの目印がない</strong>こと、そして<strong>純白 <code>#fff</code> と純黒 <code>#000</code> のハレーション</strong>です。純白のバックライトが文字の輪郭を発光させ、長時間見ていると文字が滲んで見えてきます。</p>
+
+    <p>この画面には、目に見えないほど微細な SVG ノイズ（<code>fractalNoise</code>）を 2.5% の不透明度で重ねています。パッと見はただの生成り色ですが、脳が「質感のある紙」と誤認するため、ピント調節を担う毛様体筋が緩み、光の刺さり具合がマイルドになります。</p>
+
+    <h2>純白パネルはハレーションの原因</h2>
+    <div class="card">
+      <p>これは真っ白なカードです。通常モードだと周囲との明度差が大きく、面が発光しているように感じられます。紙モードにすると、このカードも生成り寄りの色に落ち着き、面のギラつきが消えます。</p>
+    </div>
+
+    <h2>コントラストは高すぎても低すぎても疲れる</h2>
+    <p>紙の本に近い最適なコントラスト比を狙います。背景は <code>#f5f2eb</code>（生成り）や <code>#f4eccf</code>（セピア）、文字は <code>#2b2b2b</code>（炭黒）。純黒を避けることで、文字の輪郭の発光を防ぎます。行間を <code>1.8</code> に広げ、字間を少し空けると、視線移動の認知負荷が下がります。</p>
+
+    <p>テキスト入力・コーディング・リサーチのような長時間の読み書きで、驚くほど目が痛くなりにくく、集中力が持続します。まずここで自分に合う値を探し、Stylus の UserCSS に反映してすべてのサイトへ広げましょう。</p>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const body = document.body;
+
+    // 紙ノイズSVGを不透明度パラメータから生成
+    function noiseUrl(op) {
+      const svg =
+        "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>" +
+        "<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/></filter>" +
+        "<rect width='100%' height='100%' filter='url(#n)' opacity='" + op + "'/></svg>";
+      return "url(\"data:image/svg+xml," + encodeURIComponent(svg) + "\")";
+    }
+
+    function apply() {
+      const r = document.documentElement.style;
+      r.setProperty('--paper-bg', $('bg').value);
+      r.setProperty('--paper-ink', $('ink').value);
+      r.setProperty('--paper-lh', $('lh').value);
+      r.setProperty('--paper-ls', $('ls').value + 'em');
+      r.setProperty('--noise-url', noiseUrl($('noise').value));
+      $('bgVal').textContent = $('bg').value;
+      $('inkVal').textContent = $('ink').value;
+      $('noiseVal').textContent = $('noise').value;
+      $('lhVal').textContent = $('lh').value;
+      $('lsVal').textContent = $('ls').value;
+    }
+
+    ['bg','ink','noise','lh','ls'].forEach(id => $(id).addEventListener('input', apply));
+
+    $('toggle').addEventListener('click', () => {
+      const on = body.classList.toggle('paper');
+      $('toggle').classList.toggle('on', on);
+      $('toggle').textContent = on ? '紙モードを OFF にする' : '紙モードを ON にする';
+      $('controls').hidden = !on;
+    });
+
+    apply();
+  </script>
+</body>
+</html>
